@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Launcher for the iron-proxy snap.
+#
+# Seeds the working configuration in $SNAP_COMMON on first start, generates
+# the MITM certificate authority iron-proxy signs leaf certificates with, and
+# then starts the proxy against the configuration file.
+
+set -eu
+
+COMMON="${SNAP_COMMON}"
+CONFIG="${COMMON}/iron-proxy.yaml"
+TEMPLATE="${SNAP}/etc/iron-proxy/iron-proxy.yaml"
+CA_CERT="${COMMON}/ca.crt"
+CA_KEY="${COMMON}/ca.key"
+
+# Create the working configuration on first start. Never overwrite an existing
+# file, so a snap refresh preserves the operator's edits.
+if [ ! -e "${CONFIG}" ]; then
+    sed "s|@SNAP_COMMON@|${COMMON}|g" "${TEMPLATE}" > "${CONFIG}"
+fi
+
+# iron-proxy terminates TLS using a CA of the operator's choosing. Generate one
+# into $SNAP_COMMON if it is missing; it persists across refreshes. Clients
+# must trust this CA for MITM to work (see the snap's README).
+if [ ! -e "${CA_CERT}" ] || [ ! -e "${CA_KEY}" ]; then
+    "${SNAP}/bin/iron-proxy" generate-ca \
+        -outdir "${COMMON}" \
+        -name "iron-proxy CA"
+fi
+
+exec "${SNAP}/bin/iron-proxy" -config "${CONFIG}"
