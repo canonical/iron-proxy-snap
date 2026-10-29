@@ -1,0 +1,7 @@
+# snapcraft build artifacts
+parts/
+prime/
+stage/
+overlay/
+*.snap
+.snapcraft/

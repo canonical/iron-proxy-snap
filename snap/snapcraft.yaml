@@ -1,0 +1,53 @@
+name: iron-proxy
+base: core26
+version: '0.54.0'
+title: iron-proxy
+summary: An egress firewall for untrusted workloads
+description: |
+  iron-proxy is a MITM egress proxy with a built-in DNS server that sits
+  between an untrusted workload and the internet. It enforces default-deny
+  egress, swaps proxy tokens for real secrets at the boundary, and writes a
+  structured per-request audit trail.
+website: https://docs.iron.sh
+source-code: https://github.com/canonical/iron-proxy-snap
+issues: https://github.com/canonical/iron-proxy-snap/issues
+contact: https://github.com/canonical/iron-proxy-snap
+license: Apache-2.0
+
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  iron-proxy:
+    command: bin/iron-proxy-launch
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+
+parts:
+  iron-proxy:
+    plugin: go
+    source: https://github.com/paradigmxyz/iron-proxy.git
+    source-tag: v0.54.0
+    build-snaps:
+      - go/1.27/stable
+    build-packages:
+      - git
+    build-environment:
+      - CGO_ENABLED: "0"
+    override-build: |
+      go build -trimpath \
+        -ldflags "-s -w -X github.com/ironsh/iron-proxy/internal/version.Version=${CRAFT_PROJECT_VERSION}" \
+        -o "$CRAFT_PART_INSTALL/bin/iron-proxy" \
+        ./cmd/iron-proxy
+
+      install -Dm755 "$CRAFT_PROJECT_DIR/snap/local/iron-proxy-launch" \
+        "$CRAFT_PART_INSTALL/bin/iron-proxy-launch"
+      install -Dm644 "$CRAFT_PROJECT_DIR/snap/local/iron-proxy.yaml" \
+        "$CRAFT_PART_INSTALL/etc/iron-proxy/iron-proxy.yaml"
